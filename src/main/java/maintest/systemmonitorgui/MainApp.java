@@ -27,6 +27,7 @@ import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
 import oshi.hardware.GlobalMemory;
 import oshi.hardware.HWDiskStore;
+import oshi.hardware.HWPartition;
 import oshi.hardware.HardwareAbstractionLayer;
 import oshi.hardware.NetworkIF;
 import oshi.hardware.PhysicalMemory;
@@ -46,7 +47,7 @@ public class MainApp extends javax.swing.JFrame {
     private final List<Double> diskUsageHistory = new ArrayList<>();
     private final List<Double> networkHistory = new ArrayList<>();
 
-    private static final int HISTORY_SIZE = 31;
+    private static final int HISTORY_SIZE = 61;
     private static final int DISK_HISTORY_SIZE = 3;
 
     private final SystemInfo systemInfo = new SystemInfo();
@@ -105,7 +106,7 @@ public class MainApp extends javax.swing.JFrame {
         panelgrafiknetwork.setLayout(new BorderLayout());
 
         JFreeChart cpuChart = ChartFactory.createXYLineChart("CPU MONITOR", "SECOND(s)", "PERCENTAGE(%)", new XYSeriesCollection(cpuSeries), PlotOrientation.VERTICAL, false, true, false);
-        JFreeChart memoryChart = ChartFactory.createXYLineChart("MEMORY MONITOR", "SECOND(s)", "USAGE(&)", new XYSeriesCollection(memorySeries), PlotOrientation.VERTICAL, false, true, false);
+        JFreeChart memoryChart = ChartFactory.createXYLineChart("MEMORY MONITOR", "SECOND(s)", "USAGE(%)", new XYSeriesCollection(memorySeries), PlotOrientation.VERTICAL, false, true, false);
         JFreeChart diskChart = ChartFactory.createXYLineChart("DISK MONITOR", "SECOND(s)", "ACTIVE TIME(%)", new XYSeriesCollection(diskSeries), PlotOrientation.VERTICAL, false, true, false);
         JFreeChart networkChart = ChartFactory.createXYLineChart("NETWORK TRAFFIC", "SECOND(s)", "Bytes(/s)", new XYSeriesCollection(networkSeries), PlotOrientation.VERTICAL, false, true, false);
 
@@ -191,6 +192,10 @@ public class MainApp extends javax.swing.JFrame {
                         writeRate += diskStore.getWriteBytes() - prevWriteBytes;
                         diskStore.getReads();
                         diskStore.getWrites();
+
+                        long totalCapacity = diskStore.getSize();
+                        long usedSpace = totalCapacity - diskStore.getSize();
+                        String capacityText = String.format("%s / %s", FormatUtil.formatBytes(usedSpace), FormatUtil.formatBytes(totalCapacity));
                     }
 
                     long diskTimeDiff = diskTime - prevDiskTime;
@@ -293,8 +298,44 @@ public class MainApp extends javax.swing.JFrame {
                 }
             }
 
+            private String formatUptime(long uptimeSeconds) {
+                long days = uptimeSeconds / (60 * 60 * 24);
+                long hours = (uptimeSeconds % (60 * 60 * 24)) / (60 * 60);
+                long minutes = (uptimeSeconds % (60 * 60)) / 60;
+                long seconds = uptimeSeconds % 60;
+//                long milliseconds = (System.nanoTime() / 1_000_000) % 1000;
+//                long nanoseconds = System.nanoTime() % 1000000;
+
+                return String.format("%d Days, %02d Hours : %02d Minutes : %02d Seconds", days, hours, minutes, seconds);
+            }
+
             @Override
             protected void done() {
+                new Thread(() -> {
+                    int cores = processor.getPhysicalProcessorCount();
+                    SwingUtilities.invokeLater(() -> {
+                        physicalprocessor.setText(cores + " cores");
+                        uptimeLabel.setText("" + formatUptime(systemInfo.getOperatingSystem().getSystemUptime()));
+
+                        for (HWDiskStore diskStore : systemInfo.getHardware().getDiskStores()) {
+                            String model = diskStore.getModel();
+                            diskmodel.setText("" + model);
+
+                            for (NetworkIF netIF : hal.getNetworkIFs()) {
+//                                netIF.updateAttributes();
+                                String macAddress = netIF.getMacaddr();
+                                if (macAddress == null || macAddress.isEmpty()) {
+                                    macAddress = "N/A";
+                                }
+
+                                final String finalMacAddress = macAddress;
+                                macAddressLabel.setText("" + finalMacAddress);
+                            }
+                        }
+
+                    });
+                }).start();
+
                 SwingUtilities.invokeLater(() -> {
                     repaint();
                 });
@@ -317,6 +358,12 @@ public class MainApp extends javax.swing.JFrame {
     private void updateNetworkData() {
         for (NetworkIF netIF : hal.getNetworkIFs()) {
             netIF.updateAttributes();
+            String macAddress = netIF.getMacaddr();
+            if (macAddress == null || macAddress.isEmpty()) {
+                macAddress = "N/A";
+            }
+
+            final String finalMacAddress = macAddress;
         }
     }
 
@@ -396,6 +443,14 @@ public class MainApp extends javax.swing.JFrame {
         memoryspeed = new javax.swing.JLabel();
         memorytype = new javax.swing.JLabel();
         jLabel14 = new javax.swing.JLabel();
+        jLabel15 = new javax.swing.JLabel();
+        physicalprocessor = new javax.swing.JLabel();
+        jLabel17 = new javax.swing.JLabel();
+        diskmodel = new javax.swing.JLabel();
+        jLabel18 = new javax.swing.JLabel();
+        macAddressLabel = new javax.swing.JLabel();
+        jLabel19 = new javax.swing.JLabel();
+        uptimeLabel = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -517,6 +572,22 @@ public class MainApp extends javax.swing.JFrame {
 
         jLabel14.setText("TYPE               :");
 
+        jLabel15.setText("PHYSICAL          :");
+
+        physicalprocessor.setText("Physical");
+
+        jLabel17.setText("MODEL             :");
+
+        diskmodel.setText("CAPACITY");
+
+        jLabel18.setText("MAC ADR :");
+
+        macAddressLabel.setText("mac address");
+
+        jLabel19.setText("UP TIME   :");
+
+        uptimeLabel.setText("uptime");
+
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
@@ -526,6 +597,10 @@ public class MainApp extends javax.swing.JFrame {
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
                         .addComponent(jLabel1)
+                        .addGap(18, 18, 18)
+                        .addComponent(jLabel19)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(uptimeLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 474, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
@@ -552,9 +627,11 @@ public class MainApp extends javax.swing.JFrame {
                                             .addComponent(jLabel5, javax.swing.GroupLayout.DEFAULT_SIZE, 105, Short.MAX_VALUE)
                                             .addComponent(jLabel6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                                             .addComponent(cpupersenusage, javax.swing.GroupLayout.PREFERRED_SIZE, 56, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                            .addComponent(cpughz, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                                            .addComponent(cpughz, javax.swing.GroupLayout.DEFAULT_SIZE, 105, Short.MAX_VALUE)
+                                            .addComponent(physicalprocessor, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                                    .addComponent(jLabel15))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addGroup(jPanel2Layout.createSequentialGroup()
@@ -564,19 +641,23 @@ public class MainApp extends javax.swing.JFrame {
                                         .addGap(22, 22, 22)
                                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                             .addComponent(diskreadwrite, javax.swing.GroupLayout.PREFERRED_SIZE, 299, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                            .addComponent(diskactivetime, javax.swing.GroupLayout.PREFERRED_SIZE, 150, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                                    .addComponent(jLabel9, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                            .addComponent(diskactivetime, javax.swing.GroupLayout.PREFERRED_SIZE, 150, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                            .addComponent(diskmodel, javax.swing.GroupLayout.PREFERRED_SIZE, 232, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                    .addComponent(jLabel9, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(jLabel17))
                                 .addGap(12, 12, 12)
                                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel12, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                     .addGroup(jPanel2Layout.createSequentialGroup()
                                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                             .addComponent(jLabel13)
-                                            .addComponent(jLabel16))
-                                        .addGap(2, 2, 2)
+                                            .addComponent(jLabel16)
+                                            .addComponent(jLabel18))
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                             .addComponent(networkreceive, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                            .addComponent(networksend, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
-                                    .addComponent(jLabel12, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                                            .addComponent(networksend, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                            .addComponent(macAddressLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))))
                             .addGroup(jPanel2Layout.createSequentialGroup()
                                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(panelgrafiknetwork, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -607,39 +688,40 @@ public class MainApp extends javax.swing.JFrame {
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
                         .addGap(18, 18, 18)
                         .addComponent(panelgrafikmemory, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addGap(12, 12, 12)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel1)
+                    .addComponent(jLabel19)
+                    .addComponent(uptimeLabel))
                 .addGap(18, 18, 18)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(jLabel1)
-                        .addGap(12, 12, 12)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel9)
+                            .addComponent(jLabel12))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                    .addComponent(jLabel9)
-                                    .addComponent(jLabel12))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                        .addComponent(diskactivetime)
-                                        .addComponent(jLabel10)
-                                        .addComponent(jLabel13))
-                                    .addComponent(networksend, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                    .addComponent(jLabel11)
-                                    .addComponent(diskreadwrite)
-                                    .addComponent(jLabel16)
-                                    .addComponent(networkreceive)))
-                            .addGroup(jPanel2Layout.createSequentialGroup()
-                                .addComponent(jLabel7)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                    .addComponent(jLabel3)
-                                    .addComponent(memoryspeed))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                    .addComponent(jLabel4)
-                                    .addComponent(memoryusage)))))
+                            .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                                .addComponent(diskactivetime)
+                                .addComponent(jLabel10)
+                                .addComponent(jLabel13))
+                            .addComponent(networksend, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel11)
+                            .addComponent(diskreadwrite)
+                            .addComponent(jLabel16)
+                            .addComponent(networkreceive)))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jLabel7)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel3)
+                            .addComponent(memoryspeed))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel4)
+                            .addComponent(memoryusage)))
                     .addGroup(jPanel2Layout.createSequentialGroup()
                         .addComponent(jLabel8)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -653,7 +735,13 @@ public class MainApp extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(memorytype)
-                    .addComponent(jLabel14))
+                    .addComponent(jLabel14)
+                    .addComponent(jLabel15)
+                    .addComponent(physicalprocessor)
+                    .addComponent(jLabel17)
+                    .addComponent(diskmodel)
+                    .addComponent(jLabel18)
+                    .addComponent(macAddressLabel))
                 .addContainerGap(105, Short.MAX_VALUE))
         );
 
@@ -723,6 +811,7 @@ public class MainApp extends javax.swing.JFrame {
     private javax.swing.JLabel cpughz;
     private javax.swing.JLabel cpupersenusage;
     private javax.swing.JLabel diskactivetime;
+    private javax.swing.JLabel diskmodel;
     private javax.swing.JLabel diskreadwrite;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel10;
@@ -730,7 +819,11 @@ public class MainApp extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel12;
     private javax.swing.JLabel jLabel13;
     private javax.swing.JLabel jLabel14;
+    private javax.swing.JLabel jLabel15;
     private javax.swing.JLabel jLabel16;
+    private javax.swing.JLabel jLabel17;
+    private javax.swing.JLabel jLabel18;
+    private javax.swing.JLabel jLabel19;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
@@ -740,6 +833,7 @@ public class MainApp extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel8;
     private javax.swing.JLabel jLabel9;
     private javax.swing.JPanel jPanel2;
+    private javax.swing.JLabel macAddressLabel;
     private javax.swing.JLabel memoryspeed;
     private javax.swing.JLabel memorytype;
     private javax.swing.JLabel memoryusage;
@@ -749,5 +843,7 @@ public class MainApp extends javax.swing.JFrame {
     private javax.swing.JPanel panelgrafikdisk;
     private javax.swing.JPanel panelgrafikmemory;
     private javax.swing.JPanel panelgrafiknetwork;
+    private javax.swing.JLabel physicalprocessor;
+    private javax.swing.JLabel uptimeLabel;
     // End of variables declaration//GEN-END:variables
 }
