@@ -470,7 +470,7 @@ public class MainApp extends javax.swing.JFrame {
         );
 
         jLabel2.setFont(new java.awt.Font("Segoe UI", 0, 24)); // NOI18N
-        jLabel2.setText("SYSTEM MONITOR GUI SIMPLE");
+        jLabel2.setText("SIMPLE GUI MONITOR SYSTEM");
 
         panelgrafikcpu.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
         panelgrafikcpu.addMouseListener(new java.awt.event.MouseAdapter() {

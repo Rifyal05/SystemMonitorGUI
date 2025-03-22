@@ -272,7 +272,7 @@
             <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
               <Font name="Segoe UI" size="24" style="0"/>
             </Property>
-            <Property name="text" type="java.lang.String" value="SYSTEM MONITOR GUI SIMPLE"/>
+            <Property name="text" type="java.lang.String" value="SIMPLE GUI MONITOR SYSTEM"/>
           </Properties>
         </Component>
         <Container class="javax.swing.JPanel" name="panelgrafikcpu">
